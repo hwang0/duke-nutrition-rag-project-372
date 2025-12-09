@@ -65,6 +65,8 @@ A simple "always high protein" heuristic achieves 53.8% accuracy, demonstrating 
 
 **Clarity**: 4.2/5.0 (Clear explanations of recommendations)
 
+The perfect grounding score (5.0/5.0) confirms that my RAG architecture successfully seems to prevent hallucinations by only recommending actual Duke menu items, while the high accuracy score (4.6/5.0) validates that ratio bonuses effectively prioritize nutritionally appropriate items for each goal. The slightly lower helpfulness and clarity scores (4.2/5.0) suggest future iterations could improve response conciseness and stronger recommendations, though the strong overall average (4.48/5.0) demonstrates the system meets its goal of providing reliable and nutrition-aware recommendations for the user.
+
 ![Qualitative Evaluation](evaluation/qualitative_evaluation.png)
 
 ### Ablation Study
