@@ -17,11 +17,11 @@ class DukeNutritionRAG:
         self.embedding_tokenizer = embedding_tokenizer
         self.device = device
         self.conversation_history = []
-        self.dietary_requirement = None  #Remember dietary restrictions
+        self.dietary_requirement = None  
         self.excluded_restaurants = []  
+        self.included_restaurants = []
         self.nutrition_goal = None    
         
-        # System prompt(from conversation_log file)
         self.system_prompt = """You are a helpful nutrition assistant for Duke University students.
 
 Your job is to recommend ACTUAL MEALS from Duke dining halls based on students' nutrition goals.
@@ -65,10 +65,22 @@ IMPORTANT RULES
 
 If you see macro percentages in the item details, USE THEM to make better recommendations!
 
-Example response:
-"For cutting, I recommend the Grilled Chicken at Farmstead (45g protein, 250 cal, 72% protein). 
+Example responses:
+
+Example 1: 
+User: "high protein meal for cutting"
+Assistant: "For cutting, I recommend the Grilled Chicken at Farmstead (45g protein, 250 cal, 72% protein). 
 It's incredibly lean and perfect for preserving muscle while losing fat. You could also try 
 the Turkey Breast at J.B.'s (38g protein, 180 cal, 84% protein) for an even leaner option! For something lighter, you could try..."
+
+Example 2:
+User: "I want a keto friendly meal"
+Assistant: "For keto, I recommend the Avocado Bowl at Il Forno 
+(70% fat, 5% carbs). Perfect macro split for ketosis... and it provides..."
+
+Example 3:
+User: "I want a high fiber breakfast"
+Assistant: "For fiber, try the Oatmeal at Marketplace (10g fiber). This is because it's excellent for digestive health..."
 
 Make sure to be flexible with the accepting types of queries."""
     
@@ -119,12 +131,45 @@ Make sure to be flexible with the accepting types of queries."""
         query_lower = query.lower()
         excluded = []
         
+        # Complete patterns for ALL 27 Duke dining locations
         restaurant_patterns = [
-            (r'no\s+(?:meals?\s+(?:at|from)\s+)?marketplace', 'Marketplace'),
-            (r'not\s+(?:at|from)\s+marketplace', 'Marketplace'),
-            (r'exclude\s+marketplace', 'Marketplace'),
-            (r'no\s+(?:meals?\s+(?:at|from)\s+)?il\s*forno', 'Il Forno'),
-            (r'not\s+(?:at|from)\s+il\s*forno', 'Il Forno'),
+            # Main dining halls
+            (r'(?:no|not|exclude)\s+(?:meals?\s+(?:at|from)\s+)?marketplace', 'Marketplace'),
+            (r'(?:no|not|exclude)\s+(?:meals?\s+(?:at|from)\s+)?(?:the\s+)?farmstead', 'The Farmstead'),
+            (r'(?:no|not|exclude)\s+(?:meals?\s+(?:at|from)\s+)?trinity', 'Trinity Cafe'),
+            
+            # Quick service
+            (r'(?:no|not|exclude)\s+(?:meals?\s+(?:at|from)\s+)?il\s*forno', 'Il Forno'),
+            (r'(?:no|not|exclude)\s+(?:meals?\s+(?:at|from)\s+)?sprout', 'Sprout'),
+            (r'(?:no|not|exclude)\s+(?:meals?\s+(?:at|from)\s+)?(?:the\s+)?skillet', 'The Skillet'),
+            (r'(?:no|not|exclude)\s+(?:meals?\s+(?:at|from)\s+)?tandoor', 'Tandoor Indian Cuisine'),
+            (r'(?:no|not|exclude)\s+(?:meals?\s+(?:at|from)\s+)?ginger', 'Ginger + Soy'),
+            (r'(?:no|not|exclude)\s+(?:meals?\s+(?:at|from)\s+)?sazon', 'Sazon'),
+            (r'(?:no|not|exclude)\s+(?:meals?\s+(?:at|from)\s+)?gyotaku', 'Gyotaku'),
+            (r'(?:no|not|exclude)\s+(?:meals?\s+(?:at|from)\s+)?thyme', "It's Thyme"),
+            
+            # Specialty
+            (r'(?:no|not|exclude)\s+(?:meals?\s+(?:at|from)\s+)?j\.?b\.?\'?s', "J.B.'s Roast & Chops"),
+            (r'(?:no|not|exclude)\s+(?:meals?\s+(?:at|from)\s+)?gothic', 'Gothic Grill'),
+            (r'(?:no|not|exclude)\s+(?:meals?\s+(?:at|from)\s+)?pitchfork', 'The Pitchfork'),
+            
+            # Coffee shops
+            (r'(?:no|not|exclude)\s+(?:meals?\s+(?:at|from)\s+)?beyu', 'Beyu Blue Coffee'),
+            (r'(?:no|not|exclude)\s+(?:meals?\s+(?:at|from)\s+)?bseisu', 'Bseisu Coffee Bar'),
+            (r'(?:no|not|exclude)\s+(?:meals?\s+(?:at|from)\s+)?freeman', 'Freeman Café'),
+            (r'(?:no|not|exclude)\s+(?:meals?\s+(?:at|from)\s+)?nasher', 'Nasher Museum Café'),
+            (r'(?:no|not|exclude)\s+(?:meals?\s+(?:at|from)\s+)?zweli', "Zweli's Café at Duke Divinity"),
+            (r'(?:no|not|exclude)\s+(?:meals?\s+(?:at|from)\s+)?devils?\s+krafthouse', 'The Devils Krafthouse'),
+            
+            # Delis
+            (r'(?:no|not|exclude)\s+(?:meals?\s+(?:at|from)\s+)?sanford', 'Sanford Deli'),
+            (r'(?:no|not|exclude)\s+(?:meals?\s+(?:at|from)\s+)?saladalia', 'Saladalia @ The Perk'),
+            (r'(?:no|not|exclude)\s+(?:meals?\s+(?:at|from)\s+)?bella', 'Bella Union'),
+            (r'(?:no|not|exclude)\s+(?:meals?\s+(?:at|from)\s+)?twinnie', "Twinnie's"),
+            (r'(?:no|not|exclude)\s+(?:meals?\s+(?:at|from)\s+)?red\s+mango', 'Red Mango'),
+            
+            # Special
+            (r'(?:no|not|exclude)\s+(?:meals?\s+(?:at|from)\s+)?marine\s+lab', 'Duke Marine Lab'),
         ]
         
         for pattern, restaurant in restaurant_patterns:
@@ -132,6 +177,62 @@ Make sure to be flexible with the accepting types of queries."""
                 excluded.append(restaurant)
         
         return excluded
+    
+    def _identify_included_restaurants(self, query):
+        """Identify restaurants to ONLY show based on query."""
+        query_lower = query.lower()
+        included = []
+        
+        # Complete patterns for ALL 27 Duke dining locations
+        restaurant_patterns = [
+            # Main dining halls
+            (r'(?:from|at|only\s+at)\s+marketplace', 'Marketplace'),
+            (r'(?:from|at|only\s+at)\s+(?:the\s+)?farmstead', 'The Farmstead'),
+            (r'(?:from|at|only\s+at)\s+trinity(?:\s+cafe)?', 'Trinity Cafe'),
+            
+            # Quick service & cafes
+            (r'(?:from|at|only\s+at)\s+il\s*forno', 'Il Forno'),
+            (r'(?:from|at|only\s+at)\s+sprout', 'Sprout'),
+            (r'(?:from|at|only\s+at)\s+(?:the\s+)?skillet', 'The Skillet'),
+            (r'(?:from|at|only\s+at)\s+tandoor', 'Tandoor Indian Cuisine'),
+            (r'(?:from|at|only\s+at)\s+ginger(?:\s*\+?\s*soy)?', 'Ginger + Soy'),
+            (r'(?:from|at|only\s+at)\s+sazon', 'Sazon'),
+            (r'(?:from|at|only\s+at)\s+gyotaku', 'Gyotaku'),
+            (r'(?:from|at|only\s+at)\s+(?:it\'?s\s+)?thyme', "It's Thyme"),
+            
+            # Specialty restaurants
+            (r'(?:from|at|only\s+at)\s+j\.?b\.?\'?s', "J.B.'s Roast & Chops"),
+            (r'(?:from|at|only\s+at)\s+gothic\s+grill', 'Gothic Grill'),
+            (r'(?:from|at|only\s+at)\s+(?:the\s+)?pitchfork', 'The Pitchfork'),
+            
+            # Coffee shops
+            (r'(?:from|at|only\s+at)\s+beyu(?:\s+blue)?(?:\s+coffee)?', 'Beyu Blue Coffee'),
+            (r'(?:from|at|only\s+at)\s+bseisu', 'Bseisu Coffee Bar'),
+            (r'(?:from|at|only\s+at)\s+freeman(?:\s+caf[eé])?', 'Freeman Café'),
+            (r'(?:from|at|only\s+at)\s+nasher(?:\s+museum)?(?:\s+caf[eé])?', 'Nasher Museum Café'),
+            (r'(?:from|at|only\s+at)\s+zweli\'?s', "Zweli's Café at Duke Divinity"),
+            (r'(?:from|at|only\s+at)\s+(?:the\s+)?devils?\s+krafthouse', 'The Devils Krafthouse'),
+            
+            # Delis & quick serve
+            (r'(?:from|at|only\s+at)\s+sanford\s+deli', 'Sanford Deli'),
+            (r'(?:from|at|only\s+at)\s+saladalia', 'Saladalia @ The Perk'),
+            (r'(?:from|at|only\s+at)\s+(?:the\s+)?perk', 'Saladalia @ The Perk'),
+            (r'(?:from|at|only\s+at)\s+bella\s+union', 'Bella Union'),
+            (r'(?:from|at|only\s+at)\s+twinnie\'?s', "Twinnie's"),
+            (r'(?:from|at|only\s+at)\s+red\s+mango', 'Red Mango'),
+            
+            # Special locations
+            (r'(?:from|at|only\s+at)\s+duke\s+marine\s+lab', 'Duke Marine Lab'),
+            
+            # Generic (only if no specific match)
+            (r'(?:from|at|only\s+at)\s+(?:the\s+)?cafe(?!\s)', 'Cafe'),  # Match "cafe" but not "cafe something"
+        ]
+        
+        for pattern, restaurant in restaurant_patterns:
+            if re.search(pattern, query_lower):
+                included.append(restaurant)
+        
+        return included
     
     def _detect_nutrition_goal(self, query):
         """Detect nutrition goal from query (for ratio bonuses)."""
@@ -274,6 +375,7 @@ Make sure to be flexible with the accepting types of queries."""
         self.conversation_history = []
         self.dietary_requirement = None
         self.excluded_restaurants = []
+        self.included_restaurants = []
         self.nutrition_goal = None
 
     def retrieve(self, query, k=5):
@@ -344,6 +446,20 @@ Make sure to be flexible with the accepting types of queries."""
             filtered_meals = [
                 r for r in filtered_meals 
                 if r['item'].get('restaurant') not in self.excluded_restaurants
+            ]
+        included_now = self._identify_included_restaurants(query)
+
+        if included_now:
+            # Save included restaurants
+            for restaurant in included_now:
+                if restaurant not in self.included_restaurants:
+                    self.included_restaurants.append(restaurant)
+
+        # Apply included filter (overrides excluded if both present)
+        if self.included_restaurants:
+            filtered_meals = [
+                r for r in filtered_meals
+                if r["item"].get("restaurant") in self.included_restaurants
             ]
         
         #Apply ratio bonuses(using saved goal!)
