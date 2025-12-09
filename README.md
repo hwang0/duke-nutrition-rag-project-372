@@ -36,14 +36,14 @@ OR
 
 **0.459 semantic similarity** shows moderate semantic alignment (embeddings capture meaning but need nutrition intelligence for high accuracy)
 
-![Quantitative Metrics](evaluation/quantitative_metrics (1).png)
+![Quantitative Metrics](evaluation/quantitative_metrics_updated.png)
 
 ### Baseline Metrics
 1. Random Selection(Baseline): 40.0% (Randomly selects 5 items from menu (worst case)
 2. Keyword Matching (High Protein): 53.8% (Always returns the 5 highest-protein items, ignoring query context)
 3. ##### RAG System (My Model): 80.0% (Semantic understanding of query intent)
 
-![Baseline Comparison](evaluation/baseline_comparison (1).png)
+![Baseline Comparison](evaluation/baseline_comparison_updated.png)
 
 A simple "always high protein" heuristic achieves 53.8% accuracy, demonstrating that protein optimization is a common pattern in nutrition queries
 - However, RAG system's intelligent understanding of different nutrition goals achieves **80% accuracy**, a **49% relative improvement** over the protein heuristic
