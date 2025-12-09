@@ -30,11 +30,11 @@ OR
 2. Semantic Similarity (Average cosine similarity between query and retrieved items): 0.459
 3. Top-1 Hit Rate (Percentage of queries where #1 recommendation is nutritionally valid): 87.5%
 
-**80% overall accuracy** across 16 diverse test queries covering 7 nutrition goals
+**80% overall accuracy** across 16 diverse test queries covering 7 nutrition goals, demonstrates that model can successfully handle some diverse nutrition goals with manually-incorporated criterias.
 
-**87.5% top-1 hit rate** means 14/16 queries got a perfect first recommendation (higher than overall accuracy, showing effective ranking)
+**87.5% top-1 hit rate** means 14/16 queries got a perfect first recommendation (higher than overall accuracy, showing effective ranking), indicates the ranking mechanism effectively prioritizes the best matches, which is critical for user experience.
 
-**0.459 semantic similarity** shows moderate semantic alignment (embeddings capture meaning but need nutrition intelligence for high accuracy)
+**0.459 semantic similarity** shows moderate semantic alignment (embeddings capture meaning but need nutrition intelligence for high accuracy), revealing an important insight: embeddings alone capture semantic meaning but require nutrition-specific intelligence (ratio bonuses) to achieve high accuracy, as confirmed by the ablation study showing embeddings-only achieving only 37.5%.
 
 ![Quantitative Metrics](evaluation/quantitative_metrics_updated.png)
 
